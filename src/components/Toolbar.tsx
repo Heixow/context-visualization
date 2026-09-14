@@ -1,8 +1,7 @@
-import type { Transcript, ViewFilter } from '../lib/types';
-import { toFilteredJsonl, toMarkdown } from '../lib/export';
+import type { Message, ViewFilter } from '../lib/types';
 
 interface Props {
-  transcript: Transcript;
+  messages: Message[];
   kept: Set<string>;
   query: string;
   onQuery: (q: string) => void;
@@ -12,6 +11,10 @@ interface Props {
   viewFilter: ViewFilter;
   onViewFilter: (v: ViewFilter) => void;
   onSetAll: (keep: boolean) => void;
+  onExportMarkdown: () => string;
+  onExportJsonl: (() => string) | null;
+  jsonLabel?: string;
+  jsonFilename?: string;
 }
 
 function download(name: string, content: string, mime: string) {
@@ -31,7 +34,7 @@ const FILTERS: { key: ViewFilter; label: string }[] = [
 ];
 
 export default function Toolbar({
-  transcript,
+  messages,
   kept,
   query,
   onQuery,
@@ -41,8 +44,12 @@ export default function Toolbar({
   viewFilter,
   onViewFilter,
   onSetAll,
+  onExportMarkdown,
+  onExportJsonl,
+  jsonLabel = '下载 .jsonl',
+  jsonFilename = 'context.jsonl',
 }: Props) {
-  const keptCount = transcript.messages.filter((m) => kept.has(m.uuid)).length;
+  const keptCount = messages.filter((m) => kept.has(m.uuid)).length;
 
   return (
     <div className="toolbar">
@@ -81,17 +88,19 @@ export default function Toolbar({
       <span className="divider" />
 
       <span className="check muted">
-        保留 {keptCount}/{transcript.messages.length}
+        保留 {keptCount}/{messages.length}
       </span>
-      <button className="btn" onClick={() => void navigator.clipboard.writeText(toMarkdown(transcript.messages, kept))}>
+      <button className="btn" onClick={() => void navigator.clipboard.writeText(onExportMarkdown())}>
         复制 Markdown
       </button>
-      <button className="btn" onClick={() => download('context.md', toMarkdown(transcript.messages, kept), 'text/markdown')}>
+      <button className="btn" onClick={() => download('context.md', onExportMarkdown(), 'text/markdown')}>
         下载 .md
       </button>
-      <button className="btn" onClick={() => download('context.jsonl', toFilteredJsonl(transcript, kept), 'application/x-ndjson')}>
-        下载 .jsonl
-      </button>
+      {onExportJsonl && (
+        <button className="btn" onClick={() => download(jsonFilename, onExportJsonl(), 'application/json')}>
+          {jsonLabel}
+        </button>
+      )}
     </div>
   );
 }

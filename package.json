@@ -6,6 +6,7 @@
   "description": "Agent 上下文可视化与人工精炼工具 —— 解析 Claude Code transcript，查看上下文，标记保留/丢弃并导出。",
   "scripts": {
     "dev": "vite",
+    "proxy": "node server/proxy.mjs",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview"
   },

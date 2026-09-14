@@ -1,9 +1,16 @@
-import type { Transcript } from '../lib/types';
+import type { Message } from '../lib/types';
 import { formatTokens } from '../lib/format';
 
 interface Props {
-  transcript: Transcript;
+  title: string;
+  meta?: string;
+  messages: Message[];
+  totalTokens: number;
   kept: Set<string>;
+  /** API 层真实 input_tokens（捕获模式才有） */
+  exactInputTokens?: number;
+  /** 额外统计块（system / tools 等） */
+  auxTiles?: { label: string; value: string }[];
 }
 
 function StatTile({
@@ -28,28 +35,29 @@ function StatTile({
   );
 }
 
-export default function OverviewBar({ transcript, kept }: Props) {
-  const total = transcript.totalTokens;
-  const keptMsgs = transcript.messages.filter((m) => kept.has(m.uuid));
+export default function OverviewBar({ title, meta, messages, totalTokens, kept, exactInputTokens, auxTiles }: Props) {
+  const keptMsgs = messages.filter((m) => kept.has(m.uuid));
   const keptTokens = keptMsgs.reduce((s, m) => s + m.tokenEstimate, 0);
-  const droppedCount = transcript.messages.length - keptMsgs.length;
-  const pct = total > 0 ? Math.round((keptTokens / total) * 100) : 0;
+  const droppedCount = messages.length - keptMsgs.length;
+  const pct = totalTokens > 0 ? Math.round((keptTokens / totalTokens) * 100) : 0;
 
   return (
     <div className="overview">
       <div className="overview-title">
-        <h1>{transcript.title ?? '（无标题）'}</h1>
-        <p className="meta">
-          {transcript.cwd ?? '（未知目录）'}
-          {transcript.gitBranch ? ` · ${transcript.gitBranch}` : ''}
-          {transcript.sessionId ? ` · ${transcript.sessionId.slice(0, 8)}` : ''}
-        </p>
+        <h1>{title}</h1>
+        {meta && <p className="meta">{meta}</p>}
       </div>
       <div className="stat-tiles">
+        {exactInputTokens != null && (
+          <StatTile label="精确输入 tokens" value={formatTokens(exactInputTokens)} delta="API usage" accent />
+        )}
         <StatTile label="保留 tokens" value={formatTokens(keptTokens)} delta={`${pct}%`} deltaGood accent />
-        <StatTile label="总 tokens" value={formatTokens(total)} />
-        <StatTile label="消息数" value={String(transcript.messages.length)} delta={droppedCount ? `已丢弃 ${droppedCount}` : undefined} />
+        <StatTile label="消息 tokens" value={formatTokens(totalTokens)} delta={exactInputTokens == null ? '估算' : undefined} />
+        <StatTile label="消息数" value={String(messages.length)} delta={droppedCount ? `已丢弃 ${droppedCount}` : undefined} />
         <StatTile label="保留消息" value={String(keptMsgs.length)} />
+        {(auxTiles ?? []).map((t) => (
+          <StatTile key={t.label} label={t.label} value={t.value} />
+        ))}
       </div>
     </div>
   );

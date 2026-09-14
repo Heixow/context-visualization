@@ -1,10 +1,11 @@
-import type { Attachment, Message, Transcript, ViewFilter } from '../lib/types';
+import type { Attachment, Message, ViewFilter } from '../lib/types';
 import { messageMatchesQuery } from '../lib/search';
 import { formatTokens } from '../lib/format';
 import MessageCard from './MessageCard';
 
 interface Props {
-  transcript: Transcript;
+  messages: Message[];
+  attachments: Attachment[];
   kept: Set<string>;
   onToggle: (uuid: string) => void;
   query: string;
@@ -24,12 +25,12 @@ function AttachmentChip({ att }: { att: Attachment }) {
   );
 }
 
-export default function Timeline({ transcript, kept, onToggle, query, showThinking, viewFilter }: Props) {
+export default function Timeline({ messages, attachments, kept, onToggle, query, showThinking, viewFilter }: Props) {
   const q = query.trim().toLowerCase();
 
   const items: Item[] = [
-    ...transcript.messages.map((msg): Item => ({ kind: 'msg', msg })),
-    ...transcript.attachments.map((att): Item => ({ kind: 'att', att })),
+    ...messages.map((msg): Item => ({ kind: 'msg', msg })),
+    ...attachments.map((att): Item => ({ kind: 'att', att })),
   ].sort((a, b) => {
     const ta = a.kind === 'msg' ? a.msg.timestamp : a.att.timestamp;
     const tb = b.kind === 'msg' ? b.msg.timestamp : b.att.timestamp;

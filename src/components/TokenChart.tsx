@@ -1,16 +1,18 @@
 import { useMemo } from 'react';
-import type { Transcript } from '../lib/types';
+import type { Message } from '../lib/types';
 import { formatTime, formatTokens } from '../lib/format';
 import { estimateBlockTokens } from '../lib/tokens';
 
 interface Props {
-  transcript: Transcript;
+  messages: Message[];
   kept: Set<string>;
   onJump: (uuid: string) => void;
 }
 
-export default function TokenChart({ transcript, kept, onJump }: Props) {
-  const max = useMemo(() => Math.max(1, ...transcript.messages.map((m) => m.tokenEstimate)), [transcript]);
+export default function TokenChart({ messages, kept, onJump }: Props) {
+  const max = useMemo(() => Math.max(1, ...messages.map((m) => m.tokenEstimate)), [messages]);
+
+  if (messages.length === 0) return <aside className="token-chart"><p className="muted empty">无消息</p></aside>;
 
   return (
     <aside className="token-chart">
@@ -29,7 +31,7 @@ export default function TokenChart({ transcript, kept, onJump }: Props) {
         </span>
       </div>
       <ul className="bar-list">
-        {transcript.messages.map((m, i) => {
+        {messages.map((m, i) => {
           const isKept = kept.has(m.uuid);
           const breakdown = m.blocks
             .map((b) => `${b.type.replace('_', ' ')} ${formatTokens(estimateBlockTokens(b))}`)

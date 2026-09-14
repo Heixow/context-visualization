@@ -1,4 +1,4 @@
-import type { Message, Transcript } from './types';
+import type { ApiMessage, CapturedContext, Message, Transcript } from './types';
 import { stringifyForTokens } from './tokens';
 
 function truncate(s: string, max: number): string {
@@ -40,4 +40,41 @@ export function toFilteredJsonl(t: Transcript, keptIds: Set<string>): string {
     }
   }
   return out.map((o) => JSON.stringify(o)).join('\n') + (out.length ? '\n' : '');
+}
+
+/** 捕获上下文 -> Markdown（含 system 与保留的消息）。 */
+export function captureToMarkdown(ctx: CapturedContext, keptIds: Set<string>): string {
+  const parts: string[] = [];
+  if (ctx.systemText.trim()) parts.push('## System\n\n' + ctx.systemText + '\n');
+  for (const m of ctx.messages) {
+    if (!keptIds.has(m.uuid)) continue;
+    const role = m.role === 'assistant' ? 'Assistant' : 'User';
+    for (const b of m.blocks) {
+      if (b.type === 'text' && b.text.trim()) {
+        parts.push(`## ${role}\n\n${b.text}\n`);
+      } else if (b.type === 'thinking' && b.thinking.trim()) {
+        parts.push(`### ${role} · thinking\n\n${b.thinking}\n`);
+      } else if (b.type === 'tool_use') {
+        parts.push(`### ${role} · tool_use: ${b.name}\n\n\`\`\`json\n${truncate(stringifyForTokens(b.input), 4000)}\n\`\`\`\n`);
+      } else if (b.type === 'tool_result') {
+        parts.push(`### tool_result${b.is_error ? ' ⚠️' : ''}\n\n\`\`\`\n${truncate(stringifyForTokens(b.content), 4000)}\n\`\`\`\n`);
+      }
+    }
+  }
+  return parts.join('\n').trim();
+}
+
+/** 捕获上下文 -> 新对话种子 JSON（system + 保留消息 + tools，可喂给下一次请求）。 */
+export function captureToSeedJson(ctx: CapturedContext, keptIds: Set<string>): string {
+  const keptApi: ApiMessage[] = [];
+  for (let i = 0; i < ctx.apiMessages.length; i++) {
+    if (keptIds.has('m' + i)) keptApi.push(ctx.apiMessages[i]);
+  }
+  const out: Record<string, unknown> = {
+    model: ctx.model ?? undefined,
+    messages: keptApi,
+  };
+  if (ctx.systemText.trim()) out.system = ctx.systemText;
+  if (ctx.tools.length) out.tools = ctx.tools;
+  return JSON.stringify(out, null, 2);
 }
